@@ -11,7 +11,9 @@ from sample_db.prompts import render_prompt
 def test_generate_query_prompt_renders_expected_text() -> None:
     rendered = render_prompt("generate_query_system.j2", dialect="PostgreSQL", top_k=5)
 
-    assert rendered == """
+    assert (
+        rendered
+        == """
 You are an agent designed to interact with a SQL database.
 Given an input question, create a syntactically correct PostgreSQL query to run,
 then look at the results of the query and return the answer. Unless the user
@@ -23,12 +25,15 @@ only ask for the relevant columns given the question.
 
 NEVER make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 """.strip()
+    )
 
 
 def test_check_query_prompt_renders_expected_text() -> None:
     rendered = render_prompt("check_query_system.j2", dialect="PostgreSQL")
 
-    assert rendered == """
+    assert (
+        rendered
+        == """
 You are a SQL expert with a strong attention to detail.
 Double check the PostgreSQL query for common mistakes, including:
 - Using NOT IN with NULL values
@@ -45,6 +50,7 @@ mistakes, reproduce the original query.
 
 You will call the appropriate tool to execute the query after running this check.
 """.strip()
+    )
 
 
 @pytest.mark.parametrize(

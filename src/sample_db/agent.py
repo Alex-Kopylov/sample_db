@@ -24,9 +24,7 @@ GENERATE_QUERY_SYSTEM_PROMPT = render_prompt(
     dialect=_prompt_config.dialect,
     top_k=_prompt_config.top_k,
 )
-CHECK_QUERY_SYSTEM_PROMPT = render_prompt(
-    "check_query_system.j2", dialect=_prompt_config.dialect
-)
+CHECK_QUERY_SYSTEM_PROMPT = render_prompt("check_query_system.j2", dialect=_prompt_config.dialect)
 
 
 def build_agent() -> CompiledStateGraph:
@@ -60,9 +58,7 @@ def build_agent() -> CompiledStateGraph:
 
     def generate_query(state: MessagesState) -> dict[str, list[BaseMessage]]:
         model_with_tools = model.bind_tools([sql_db_query])
-        response = model_with_tools.invoke(
-            [SystemMessage(content=GENERATE_QUERY_SYSTEM_PROMPT), *state["messages"]]
-        )
+        response = model_with_tools.invoke([SystemMessage(content=GENERATE_QUERY_SYSTEM_PROMPT), *state["messages"]])
 
         return {"messages": [response]}
 
@@ -75,9 +71,7 @@ def build_agent() -> CompiledStateGraph:
         model_with_tools = model.bind_tools([sql_db_query], tool_choice="any")
         response = cast(
             "AIMessage",
-            model_with_tools.invoke(
-                [SystemMessage(content=CHECK_QUERY_SYSTEM_PROMPT), user_message]
-            ),
+            model_with_tools.invoke([SystemMessage(content=CHECK_QUERY_SYSTEM_PROMPT), user_message]),
         )
         response.id = last_message.id
 

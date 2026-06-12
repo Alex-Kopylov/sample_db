@@ -8,11 +8,7 @@ from sample_db import tools
 
 
 def _parse_table_list(result: str) -> set[str]:
-    return {
-        table_name.strip()
-        for table_name in result.split(",")
-        if table_name.strip()
-    }
+    return {table_name.strip() for table_name in result.split(",") if table_name.strip()}
 
 
 def test_sql_db_list_tables_returns_public_tables(
