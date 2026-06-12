@@ -1,4 +1,10 @@
-.PHONY: lint format db test run
+.PHONY: setup lint format db test run
+
+setup:
+	uv sync
+	@test -f .env || cp .env.example .env
+	$(MAKE) db
+	@echo "Setup complete — add your OPENAI_API_KEY to .env, then run 'make run'."
 
 lint:
 	uv run ruff check .
