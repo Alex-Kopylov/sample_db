@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import jwt
 from langgraph_sdk import Auth
 
 from sample_db import db
 from sample_db.config import get_settings
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 auth = Auth()
 
@@ -19,8 +24,11 @@ UNRESOLVED_CUSTOMER_DETAIL = "Unable to resolve authenticated customer"
 
 
 @auth.authenticate
-async def authenticate(authorization: str | None) -> Auth.types.MinimalUserDict:  # noqa: RUF029
+async def authenticate(  # noqa: RUF029
+    headers: Mapping[str | bytes, str | bytes] | str | bytes | None,
+) -> Auth.types.MinimalUserDict:
     """Authenticate a bearer token and return the resolved customer identity."""
+    authorization = _authorization_from_headers(headers)
     token = _extract_bearer_token(authorization)
     settings = get_settings()
 
@@ -52,9 +60,36 @@ async def authenticate(authorization: str | None) -> Auth.types.MinimalUserDict:
 @auth.on
 async def add_owner(ctx, value):  # noqa: RUF029
     """Stamp created resources with the authenticated owner identity."""
-    metadata = value.setdefault("metadata", {}) if isinstance(value, dict) else {}
+    metadata = value.get("metadata") if isinstance(value, dict) else {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+        if isinstance(value, dict):
+            value["metadata"] = metadata
     metadata["owner"] = ctx.user.identity
     return {"owner": ctx.user.identity}
+
+
+def _authorization_from_headers(
+    headers: Mapping[str | bytes, str | bytes] | str | bytes | None,
+) -> str | None:
+    if isinstance(headers, str):
+        return headers
+    if isinstance(headers, bytes):
+        return _decode_header(headers)
+    if headers is None:
+        return None
+
+    for key, value in headers.items():
+        normalized_key = _decode_header(key).lower()
+        if normalized_key == "authorization":
+            return _decode_header(value)
+    return None
+
+
+def _decode_header(value: str | bytes) -> str:
+    if isinstance(value, bytes):
+        return value.decode("latin-1")
+    return value
 
 
 def _extract_bearer_token(authorization: str | None) -> str:
