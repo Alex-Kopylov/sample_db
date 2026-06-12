@@ -19,7 +19,7 @@ INTEGER_COLUMNS = {
 def init_db(
     db_path: str | Path,
     schema_path: str | Path = "schema.sql",
-    csv_dir: str | Path = ".",
+    csv_dir: str | Path = "data",
 ) -> None:
     """Create the SQLite database from the schema and load CSV fixtures."""
     db_file = Path(db_path)
