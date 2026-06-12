@@ -34,4 +34,4 @@ run:
 	uv run langgraph dev --no-browser --host $(HOST) --port $(PORT)
 
 e2e:
-	LC_ALL=C LANG=C PORT=$(E2E_PORT) ./run_e2e.sh
+	LC_ALL=C LANG=C PORT=$(E2E_PORT) scripts/e2e/run_e2e.sh
