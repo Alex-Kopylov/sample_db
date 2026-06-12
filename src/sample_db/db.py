@@ -1,89 +1,63 @@
-"""SQLite database initialization and connection helpers."""
+"""Postgres connection helpers for tenant-scoped agent queries."""
 
 from __future__ import annotations
 
-import csv
-import sqlite3
-from pathlib import Path
+import re
+from typing import TYPE_CHECKING, Any
 
-TABLE_LOAD_ORDER = ("customers", "products", "orders", "order_items")
+import psycopg
 
-INTEGER_COLUMNS = {
-    "customers": {"id"},
-    "products": {"id", "price_cents"},
-    "orders": {"id", "customer_id"},
-    "order_items": {"id", "order_id", "product_id", "quantity", "unit_price_cents"},
-}
+from sample_db.config import get_settings
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-def init_db(
-    db_path: str | Path,
-    schema_path: str | Path = "schema.sql",
-    csv_dir: str | Path = "data",
-) -> None:
-    """Create the SQLite database from the schema and load CSV fixtures."""
-    db_file = Path(db_path)
-    db_file.parent.mkdir(parents=True, exist_ok=True)
-
-    schema = Path(schema_path).read_text(encoding="utf-8")
-    csv_root = Path(csv_dir)
-
-    with sqlite3.connect(db_file) as connection:
-        connection.executescript(schema)
-        connection.execute("PRAGMA foreign_keys = ON")
-
-        for table_name in TABLE_LOAD_ORDER:
-            _load_csv(
-                connection=connection,
-                table_name=table_name,
-                csv_path=csv_root / f"{table_name}.csv",
-            )
+FORBIDDEN_TENANT_SQL_PATTERNS = (
+    re.compile(r"\bset_config\s*\(", flags=re.IGNORECASE),
+    re.compile(r"\bapp\s*\.\s*customer_id\b", flags=re.IGNORECASE),
+)
 
 
-def get_readonly_connection(db_path: str | Path) -> sqlite3.Connection:
-    """Open a read-only connection to the SQLite database."""
-    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+def app_connection() -> psycopg.Connection:
+    """Open a connection as the RLS-enforced sample_app role."""
+    return psycopg.connect(get_settings().pg_app_dsn)
 
 
-def _load_csv(
-    connection: sqlite3.Connection,
-    table_name: str,
-    csv_path: Path,
-) -> None:
-    with csv_path.open(encoding="utf-8", newline="") as csv_file:
-        reader = csv.DictReader(csv_file)
-        if reader.fieldnames is None:
-            msg = f"{csv_path} has no header row"
-            raise ValueError(msg)
+def auth_connection() -> psycopg.Connection:
+    """Open a connection as the sample_auth lookup role."""
+    return psycopg.connect(get_settings().pg_auth_dsn)
 
-        columns = tuple(reader.fieldnames)
-        placeholders = ", ".join("?" for _ in columns)
-        column_names = ", ".join(_quote_identifier(column) for column in columns)
-        statement = (
-            f"INSERT INTO {_quote_identifier(table_name)} "  # noqa: S608 - identifiers quoted via _quote_identifier
-            f"({column_names}) VALUES ({placeholders})"
+
+def run_tenant_query(
+    customer_id: int,
+    sql: str,
+    params: Sequence[Any] = (),
+) -> list[tuple[Any, ...]]:
+    """Run a query inside a transaction scoped to one customer id."""
+    _ensure_query_cannot_change_tenant(sql)
+    with app_connection() as connection, connection.transaction():
+        connection.execute(
+            "SELECT set_config('app.customer_id', %s, true)",
+            (str(customer_id),),
         )
-        rows = [
-            tuple(
-                _cast_csv_value(
-                    table_name=table_name,
-                    column=column,
-                    value=row[column],
-                )
-                for column in columns
-            )
-            for row in reader
-        ]
-
-    connection.executemany(statement, rows)
+        cursor = connection.execute(sql, params)
+        return cursor.fetchmany(50)
 
 
-def _cast_csv_value(table_name: str, column: str, value: str) -> int | str:
-    if column in INTEGER_COLUMNS[table_name]:
-        return int(value)
-    return value
+def resolve_customer_id_by_email(email: str) -> int | None:
+    """Return a customer id for an email using the auth-only database role."""
+    with auth_connection() as connection:
+        row = connection.execute(
+            "SELECT id FROM customers WHERE email = %s",
+            (email,),
+        ).fetchone()
+
+    if row is None:
+        return None
+    return int(row[0])
 
 
-def _quote_identifier(identifier: str) -> str:
-    escaped = identifier.replace('"', '""')
-    return f'"{escaped}"'
+def _ensure_query_cannot_change_tenant(sql: str) -> None:
+    if any(pattern.search(sql) for pattern in FORBIDDEN_TENANT_SQL_PATTERNS):
+        msg = "Query cannot reference or modify tenant scope"
+        raise PermissionError(msg)

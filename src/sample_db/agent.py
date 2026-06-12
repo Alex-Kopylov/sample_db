@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING, Literal, cast
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig  # noqa: TC002 - LangGraph inspects config annotations at runtime.
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
 
-from sample_db import db
 from sample_db.config import get_settings
 from sample_db.tools import sql_db_list_tables, sql_db_query, sql_db_schema
 
 GENERATE_QUERY_SYSTEM_PROMPT = """
 You are an agent designed to interact with a SQL database.
-Given an input question, create a syntactically correct SQLite query to run,
+Given an input question, create a syntactically correct PostgreSQL query to run,
 then look at the results of the query and return the answer. Unless the user
 specifies a specific number of examples they wish to obtain, always limit your
 query to at most 5 results.
@@ -31,7 +31,7 @@ NEVER make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the databas
 
 CHECK_QUERY_SYSTEM_PROMPT = """
 You are a SQL expert with a strong attention to detail.
-Double check the SQLite query for common mistakes, including:
+Double check the PostgreSQL query for common mistakes, including:
 - Using NOT IN with NULL values
 - Using UNION when UNION ALL should have been used
 - Using BETWEEN for exclusive ranges
@@ -56,7 +56,10 @@ def build_agent() -> CompiledStateGraph:
     get_schema_node = ToolNode([sql_db_schema], name="get_schema")
     run_query_node = ToolNode([sql_db_query], name="run_query")
 
-    def list_tables(_state: MessagesState) -> dict[str, list[BaseMessage]]:
+    def list_tables(
+        _state: MessagesState,
+        config: RunnableConfig,
+    ) -> dict[str, list[BaseMessage]]:
         tool_call = {
             "name": sql_db_list_tables.name,
             "args": {},
@@ -64,7 +67,7 @@ def build_agent() -> CompiledStateGraph:
             "type": "tool_call",
         }
         tool_call_message = AIMessage(content="", tool_calls=[tool_call])
-        tool_message = sql_db_list_tables.invoke(tool_call)
+        tool_message = sql_db_list_tables.invoke(tool_call, config=config)
 
         return {"messages": [tool_call_message, tool_message]}
 
@@ -135,9 +138,5 @@ def _preserve_raw_tool_call_id(message: AIMessage, tool_call_id: str) -> None:
         if isinstance(raw_tool_call, dict):
             raw_tool_call["id"] = tool_call_id
 
-
-settings = get_settings()
-if not settings.db_path.exists():
-    db.init_db(settings.db_path)
 
 graph = build_agent()

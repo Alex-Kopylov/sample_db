@@ -8,6 +8,8 @@ dependencies = [
   "langgraph",
   "langchain-openai",
   "pydantic-settings",
+  "psycopg[binary]>=3.3.4",
+  "pyjwt>=2.13.0",
 ]
 
 [dependency-groups]
