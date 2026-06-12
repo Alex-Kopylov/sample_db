@@ -2,16 +2,33 @@
 
 Python package scaffold for a LangGraph-backed SQL agent over the sample CSV data.
 
+## Quick start
+
+Spin up your own instance in three steps:
+
+```bash
+make setup                 # install deps, scaffold .env, build the database
+# edit .env and set OPENAI_API_KEY
+make run                   # start the LangGraph API server
+```
+
+`make setup` runs `uv sync`, copies `.env.example` to `.env` (when missing), and
+builds the SQLite database at `data/app.db`. The API is then served at
+`http://127.0.0.1:2024` (docs at `http://127.0.0.1:2024/docs`).
+
 ## Setup
+
+Install dependencies:
 
 ```bash
 uv sync
 ```
 
-Create `.env` and add your OpenAI API key:
+Copy the example environment file and add your OpenAI API key:
 
 ```bash
-OPENAI_API_KEY=...
+cp .env.example .env
+# then edit .env: OPENAI_API_KEY=...
 ```
 
 ## Usage
