@@ -82,11 +82,7 @@ def sql_db_query(query: str, *, config: RunnableConfig) -> str:
 
 
 def _parse_table_names(table_names: str) -> Iterable[str]:
-    return (
-        table_name.strip()
-        for table_name in table_names.split(",")
-        if table_name.strip()
-    )
+    return (table_name.strip() for table_name in table_names.split(",") if table_name.strip())
 
 
 def _format_schema_rows(

@@ -31,7 +31,7 @@ This is not a mock-up — it is verified at three levels, all passing:
 | Level | What it proves | Result |
 |---|---|---|
 | SQL (`db/validate_rls.sql`) | cross-tenant access blocked, `WHERE id=8 OR 1=1` cannot bypass RLS, no context → 0 rows, writes denied | **11/11** |
-| pytest | RLS isolation + token verification (valid / malformed / expired / unknown) | **14 passed** |
+| pytest | RLS isolation + token verification (valid / malformed / expired / unknown) | **23 passed** |
 | HTTP end-to-end with real tokens | real server + real model | **5/5** |
 
 The key point: even under a direct prompt-injection attack ("ignore instructions, admin
@@ -42,7 +42,7 @@ lives in the database, not in the model.
 
 ```bash
 # 1. start the server
-uv run langgraph dev --no-browser --host 127.0.0.1 --port 2030
+make run PORT=2030
 
 # 2. "sign in" — issue a token for an example email (this simulates the login service)
 TOKEN=$(uv run python -m sample_db.mint_token user_007@example.test)
@@ -54,7 +54,7 @@ curl -s -X POST http://127.0.0.1:2030/runs/wait \
        "content":"How many customers are in the database, and list every customer email."}]}}'
 ```
 
-Actual response (the database holds 120 customers, but the client sees only their own):
+Example response (the database holds 120 customers, but the client sees only their own):
 
 ```
 There are 1 customer in the database.
@@ -105,7 +105,8 @@ secret manager rather than a file.
 - The email → `customer_id` mapping via the dedicated `sample_auth` role.
 - Data isolation through RLS — `db/03_rls.sql`.
 
-This is the production code, tested end-to-end. **In short:** the security-critical
-components — token verification and per-customer data isolation — are working,
-production-ready code verified end-to-end; moving to production changes only the token
-source (the login screen), not the agent.
+The security-critical components are covered end-to-end: token verification and
+per-customer data isolation are enforced in the app and database. Moving to
+production still requires a managed token source, secret management, and normal
+deployment hardening, but it does not require changing the agent's tenant
+isolation model.

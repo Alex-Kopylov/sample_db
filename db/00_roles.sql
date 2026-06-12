@@ -31,3 +31,6 @@ ALTER ROLE sample_auth NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
 
 -- Let the owner hand objects to the login roles within this database.
 GRANT sample_owner TO CURRENT_USER;
+
+-- Let sample_owner create and own the application tables in this database.
+GRANT USAGE, CREATE ON SCHEMA public TO sample_owner;

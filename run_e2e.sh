@@ -5,16 +5,15 @@ set -uo pipefail
 
 PORT="${PORT:-2030}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG="/tmp/lg_rls.log"
+LOG="${LOG:-/tmp/lg_rls_${PORT}.log}"
 URL="http://127.0.0.1:${PORT}"
 
 cd "$ROOT" || exit 2
 
-# Free the port if a stale server holds it.
 if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "Port $PORT busy; killing stale listener"
-  lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t | xargs -r kill
-  sleep 2
+  echo "Port $PORT is already in use. Choose another port, for example:"
+  echo "  PORT=2031 ./run_e2e.sh"
+  exit 2
 fi
 
 echo "Starting langgraph dev on $PORT (log: $LOG)"
@@ -25,7 +24,6 @@ cleanup() {
   echo "Stopping server (pid $SERVER_PID + children)"
   pkill -P "$SERVER_PID" 2>/dev/null
   kill "$SERVER_PID" 2>/dev/null
-  lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | xargs -r kill 2>/dev/null
 }
 trap cleanup EXIT
 
