@@ -53,7 +53,7 @@ curl -s -X POST http://127.0.0.1:2024/runs \
 ```
 
 The database is created automatically at `data/app.db` from `schema.sql` and
-the CSV files in this repository when the graph is imported. You can also create
+the CSV files in `data/` when the graph is imported. You can also create
 it manually with:
 
 ```bash
