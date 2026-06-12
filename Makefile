@@ -15,7 +15,7 @@ format:
 	uv run ruff format .
 
 db:
-	uv run python -c "from sample_db.db import init_db; init_db('data/app.db')"
+	@echo "Postgres is provisioned out-of-band. Use db/validate_rls.sql to validate RLS."
 
 test:
 	uv run pytest

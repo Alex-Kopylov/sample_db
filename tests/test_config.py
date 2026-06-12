@@ -12,7 +12,7 @@ from sample_db.config import get_config
 def test_get_config_returns_prompt_defaults() -> None:
     config = get_config()
 
-    assert config.dialect == "SQLite"
+    assert config.dialect == "PostgreSQL"
     assert config.top_k == 5
 
 

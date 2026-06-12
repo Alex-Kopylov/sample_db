@@ -1,65 +1,44 @@
-"""Shared fixtures for sample database tests."""
+"""Shared fixtures for Postgres-backed security tests."""
 
 from __future__ import annotations
 
-import csv
-from pathlib import Path
+from collections.abc import Iterator
 
+import psycopg
 import pytest
 
-from sample_db import db
+from sample_db.config import get_settings
 
 EXPECTED_TABLES = ("customers", "products", "orders", "order_items")
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _read_csv_rows(csv_path: Path) -> list[dict[str, str]]:
-    with csv_path.open(encoding="utf-8", newline="") as csv_file:
-        return list(csv.DictReader(csv_file))
-
-
-@pytest.fixture
-def project_root() -> Path:
-    """Return the repository root that holds schema.sql and the data/ directory."""
-    return PROJECT_ROOT
-
-
-@pytest.fixture
+@pytest.fixture(scope="session")
 def table_names() -> tuple[str, ...]:
-    """Return the expected sample database table names."""
+    """Return the expected public table names."""
     return EXPECTED_TABLES
 
 
-@pytest.fixture
-def csv_rows_by_table(
-    project_root: Path,
-    table_names: tuple[str, ...],
-) -> dict[str, list[dict[str, str]]]:
-    """Return parsed data rows from each CSV file in data/."""
-    return {
-        table_name: _read_csv_rows(project_root / "data" / f"{table_name}.csv")
-        for table_name in table_names
-    }
+@pytest.fixture(scope="session")
+def require_postgres() -> None:
+    """Skip tests when the local Postgres test database is unavailable."""
+    try:
+        settings = get_settings()
+        for dsn in (settings.pg_app_dsn, settings.pg_auth_dsn):
+            with psycopg.connect(dsn, connect_timeout=2) as connection:
+                connection.execute("SELECT 1")
+    except Exception as exc:
+        pytest.skip(f"Postgres test database is unavailable: {exc}")
 
 
 @pytest.fixture
-def csv_row_counts(
-    csv_rows_by_table: dict[str, list[dict[str, str]]],
-) -> dict[str, int]:
-    """Return the number of data rows in each CSV file in data/."""
-    return {
-        table_name: len(rows)
-        for table_name, rows in csv_rows_by_table.items()
-    }
+def customer_config() -> dict[str, dict[str, dict[str, str]]]:
+    """Return a LangGraph config carrying authenticated customer identity 7."""
+    return {"configurable": {"langgraph_auth_user": {"identity": "7"}}}
 
 
 @pytest.fixture
-def tmp_db_path(tmp_path: Path, project_root: Path) -> Path:
-    """Build a temporary SQLite database from the real schema and CSVs."""
-    db_path = tmp_path / "app.db"
-    db.init_db(
-        db_path=db_path,
-        schema_path=project_root / "schema.sql",
-        csv_dir=project_root / "data",
-    )
-    return db_path
+def app_connection(require_postgres: None) -> Iterator[psycopg.Connection]:
+    """Open a sample_app connection for direct RLS assertions."""
+    settings = get_settings()
+    with psycopg.connect(settings.pg_app_dsn) as connection:
+        yield connection
