@@ -20,7 +20,7 @@ def _read_csv_rows(csv_path: Path) -> list[dict[str, str]]:
 
 @pytest.fixture
 def project_root() -> Path:
-    """Return the repository root that holds schema.sql and CSV files."""
+    """Return the repository root that holds schema.sql and the data/ directory."""
     return PROJECT_ROOT
 
 
@@ -35,9 +35,9 @@ def csv_rows_by_table(
     project_root: Path,
     table_names: tuple[str, ...],
 ) -> dict[str, list[dict[str, str]]]:
-    """Return parsed data rows from each root-level CSV file."""
+    """Return parsed data rows from each CSV file in data/."""
     return {
-        table_name: _read_csv_rows(project_root / f"{table_name}.csv")
+        table_name: _read_csv_rows(project_root / "data" / f"{table_name}.csv")
         for table_name in table_names
     }
 
@@ -46,7 +46,7 @@ def csv_rows_by_table(
 def csv_row_counts(
     csv_rows_by_table: dict[str, list[dict[str, str]]],
 ) -> dict[str, int]:
-    """Return the number of data rows in each root-level CSV file."""
+    """Return the number of data rows in each CSV file in data/."""
     return {
         table_name: len(rows)
         for table_name, rows in csv_rows_by_table.items()
@@ -60,6 +60,6 @@ def tmp_db_path(tmp_path: Path, project_root: Path) -> Path:
     db.init_db(
         db_path=db_path,
         schema_path=project_root / "schema.sql",
-        csv_dir=project_root,
+        csv_dir=project_root / "data",
     )
     return db_path

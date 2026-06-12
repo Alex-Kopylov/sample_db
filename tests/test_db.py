@@ -45,7 +45,7 @@ def test_init_db_creates_tables_and_loads_csv_counts(
     db.init_db(
         db_path=db_path,
         schema_path=project_root / "schema.sql",
-        csv_dir=project_root,
+        csv_dir=project_root / "data",
     )
 
     with sqlite3.connect(db_path) as connection:
