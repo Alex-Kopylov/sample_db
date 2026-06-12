@@ -13,14 +13,20 @@ if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
 
 from sample_db import db
-from sample_db.config import get_settings
+from sample_db.config import get_config, get_settings
 from sample_db.prompts import render_prompt
 from sample_db.tools import sql_db_list_tables, sql_db_query, sql_db_schema
 
+_prompt_config = get_config()
+
 GENERATE_QUERY_SYSTEM_PROMPT = render_prompt(
-    "generate_query_system.j2", dialect="SQLite", top_k=5
+    "generate_query_system.j2",
+    dialect=_prompt_config.dialect,
+    top_k=_prompt_config.top_k,
 )
-CHECK_QUERY_SYSTEM_PROMPT = render_prompt("check_query_system.j2", dialect="SQLite")
+CHECK_QUERY_SYSTEM_PROMPT = render_prompt(
+    "check_query_system.j2", dialect=_prompt_config.dialect
+)
 
 
 def build_agent() -> CompiledStateGraph:
