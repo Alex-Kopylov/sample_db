@@ -1,5 +1,6 @@
 """Application settings loaded from the environment and .env file."""
 
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,3 +22,17 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return the cached application settings."""
     return Settings()
+
+
+@dataclass(frozen=True)
+class PromptConfig:
+    """Template variables for the agent prompt templates."""
+
+    dialect: str = "SQLite"
+    top_k: int = 5
+
+
+@lru_cache
+def get_config() -> PromptConfig:
+    """Return the cached prompt template configuration."""
+    return PromptConfig()
