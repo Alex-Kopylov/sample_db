@@ -5,7 +5,7 @@ another customer's data — scanning EVERY message in the returned graph state
 (including raw SQL tool output), so the check does not depend on how the model
 phrases its answer.
 
-Usage: SERVER_URL=http://127.0.0.1:2030 uv run python e2e_auth.py
+Usage: SERVER_URL=http://127.0.0.1:2030 uv run python scripts/e2e/e2e_auth.py
 Exits non-zero if any assertion fails.
 """
 
