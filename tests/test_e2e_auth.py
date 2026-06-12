@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-_E2E_AUTH_PATH = Path(__file__).resolve().parents[1] / "e2e_auth.py"
+_E2E_AUTH_PATH = Path(__file__).resolve().parents[1] / "scripts" / "e2e" / "e2e_auth.py"
 _E2E_AUTH_SPEC = importlib.util.spec_from_file_location("e2e_auth", _E2E_AUTH_PATH)
 assert _E2E_AUTH_SPEC is not None
 assert _E2E_AUTH_SPEC.loader is not None
