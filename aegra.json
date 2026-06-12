@@ -1,0 +1,5 @@
+{
+  "dependencies": ["."],
+  "graphs": {"sql_agent": "./src/sample_db/agent.py:graph"},
+  "auth": {"path": "./src/sample_db/auth.py:auth"}
+}

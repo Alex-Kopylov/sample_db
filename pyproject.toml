@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Project description"
 requires-python = ">=3.12"
 dependencies = [
+  "aegra-api==0.9.21",
   "jinja2>=3.1.6",
   "langchain",
   "langgraph",

@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: sample_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PW:-postgres_dev_pw}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/00_roles.sql:/docker-entrypoint-initdb.d/00_roles.sql:ro
+      - ./db/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./docker/02_load_data.sh:/docker-entrypoint-initdb.d/02_load_data.sh:ro
+      - ./db/03_rls.sql:/docker-entrypoint-initdb.d/03_rls.sql:ro
+      - ./docker/04_aegra_db.sh:/docker-entrypoint-initdb.d/04_aegra_db.sh:ro
+      - ./data:/data:ro
+      - ./db:/db:ro
+    healthcheck:
+      # -h 127.0.0.1 forces TCP: the Unix socket already answers during the
+      # initdb temp-server phase, before the init scripts have finished.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d sample_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  langgraph:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LANGGRAPH_HOST_PORT:-2024}:2024"
+    env_file:
+      - .env
+    environment:
+      AEGRA_CONFIG: aegra.json
+      AUTH_TYPE: custom
+      PG_APP_DSN: postgresql://sample_app:sample_app_pw@postgres:5432/sample_db
+      PG_AUTH_DSN: postgresql://sample_auth:sample_auth_pw@postgres:5432/sample_db
+      DATABASE_URL: postgresql://aegra:aegra_pw@postgres:5432/aegra
+      REDIS_BROKER_ENABLED: "false"
+      PORT: "2024"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "--no-sync",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:2024/health', timeout=3).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+
+  e2e:
+    profiles: ["e2e"]
+    build: .
+    env_file:
+      - .env
+    environment:
+      SERVER_URL: http://langgraph:2024
+      PG_APP_DSN: postgresql://sample_app:sample_app_pw@postgres:5432/sample_db
+      PG_AUTH_DSN: postgresql://sample_auth:sample_auth_pw@postgres:5432/sample_db
+      DATABASE_URL: postgresql://aegra:aegra_pw@postgres:5432/aegra
+      REDIS_BROKER_ENABLED: "false"
+      PORT: "2024"
+    command: ["uv", "run", "--no-sync", "python", "scripts/e2e/e2e_auth.py"]
+    depends_on:
+      langgraph:
+        condition: service_healthy
+
+volumes:
+  pgdata:

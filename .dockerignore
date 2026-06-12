@@ -1,0 +1,10 @@
+.git
+.venv
+.env*
+__pycache__
+.claude
+data/
+.uv-cache
+.pytest_cache
+.ruff_cache
+docs/plans/
