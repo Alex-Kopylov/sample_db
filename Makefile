@@ -65,4 +65,4 @@ docker-validate-rls:
 
 docker-e2e:
 	SERVER_URL=http://$$(docker compose port langgraph 2024) $(UV) run python scripts/e2e/e2e_auth.py
-	docker compose run --rm e2e
+	docker compose run --rm --build e2e
