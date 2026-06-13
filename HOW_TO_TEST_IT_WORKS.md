@@ -252,3 +252,11 @@ make docker-clean        # stop and delete the database volume
 | Port 2024 already in use | A local `make run` (langgraph dev) is on 2024. Stop it, or `LANGGRAPH_HOST_PORT=2025 make docker-up`. |
 | 401 on every request | Missing/expired token, or `JWT_SECRET` changed after minting — re-mint the token (Step 4). |
 | Stale data after editing `db/` or CSVs | `make docker-clean && make docker-up` (init scripts only run on a fresh volume). |
+
+---
+
+## Related docs
+
+- [README](README.md) — project overview and the two run modes (LangSmith dev vs Aegra).
+- [docs/authentication.md](docs/authentication.md) — how JWT → RLS tenant isolation works.
+- [docs/docker.md](docs/docker.md) — container architecture and the Aegra rationale.

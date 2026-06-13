@@ -86,8 +86,8 @@ nothing belonging to anyone else.
 
 ## Docker Variant
 
-The Docker stack serves the same graph through Aegra on port `2024` and uses the
-same thread-based flow:
+The [Docker stack](docker.md) serves the same graph through Aegra on port `2024`
+and uses the same thread-based flow:
 
 ```bash
 make docker-up
@@ -129,12 +129,18 @@ secret manager rather than a file.
 
 ## What Does Not Change in Production
 
-- Token verification (signature, expiry) — `src/sample_db/auth.py`.
+- Token verification (signature, expiry) — [`src/sample_db/auth.py`](../src/sample_db/auth.py).
 - The email → `customer_id` mapping via the dedicated `sample_auth` role.
-- Data isolation through RLS — `db/03_rls.sql`.
+- Data isolation through RLS — [`db/03_rls.sql`](../db/03_rls.sql).
 
 The security-critical components are covered end-to-end: token verification and
 per-customer data isolation are enforced in the app and database. Moving to
 production still requires a managed token source, secret management, and normal
 deployment hardening, but it does not require changing the agent's tenant
 isolation model.
+
+## Related docs
+
+- [README](../README.md) — project overview and the two run modes.
+- [docker.md](docker.md) — container architecture and the Aegra rationale.
+- [HOW_TO_TEST_IT_WORKS.md](../HOW_TO_TEST_IT_WORKS.md) — step-by-step test runbook.

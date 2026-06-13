@@ -33,25 +33,27 @@ Postgres volume and force a full database re-init on the next `make docker-up`.
 ## Why Aegra
 
 The official LangChain standalone Agent Server is designed around a licensed
-data plane with Postgres and Redis backing services. The standalone deployment
-docs list `LANGGRAPH_CLOUD_LICENSE_KEY` as a required variable and describe
-Postgres as storing assistants, threads, runs, state, and queue data:
-https://docs.langchain.com/langsmith/deploy-standalone-server
+data plane with Postgres and Redis backing services. The [standalone deployment
+docs](https://docs.langchain.com/langsmith/deploy-standalone-server) list
+`LANGGRAPH_CLOUD_LICENSE_KEY` as a required variable and describe Postgres as
+storing assistants, threads, runs, state, and queue data.
 
 Custom auth is mandatory for this app because the JWT subject determines the
-database RLS tenant. LangChain's custom auth docs show the expected
-`@auth.authenticate(headers: dict)` shape and the `langgraph_auth_user` contract:
-https://docs.langchain.com/langsmith/custom-auth
+database RLS tenant (see [authentication.md](authentication.md)). LangChain's
+[custom auth docs](https://docs.langchain.com/langsmith/custom-auth) show the
+expected `@auth.authenticate(headers: dict)` shape and the `langgraph_auth_user`
+contract.
 
 The public Postgres runtime path was also not viable for this local stack:
-langchain-ai/langgraph#6709 documents the missing `langgraph-runtime-postgres`
-package on PyPI and the resulting import failure:
-https://github.com/langchain-ai/langgraph/issues/6709
+[langchain-ai/langgraph#6709](https://github.com/langchain-ai/langgraph/issues/6709)
+documents the missing `langgraph-runtime-postgres` package on PyPI and the
+resulting import failure.
 
 The prior implementation notes also referenced
-https://github.com/langchain-ai/langgraph/discussions/5391 for the custom-auth
-licensing behavior; GitHub returned 404 for that discussion during this update,
-so the official deployment/custom-auth docs above are the durable references.
+[langchain-ai/langgraph discussion #5391](https://github.com/langchain-ai/langgraph/discussions/5391)
+for the custom-auth licensing behavior; GitHub returned 404 for that discussion
+during this update, so the official deployment/custom-auth docs above are the
+durable references.
 
 Aegra gives this repo the API surface we need without license keys:
 
@@ -64,10 +66,10 @@ The Aegra package used here is `aegra-api==0.9.21`. Current Aegra docs confirm
 `aegra.json` config resolution, `AUTH_TYPE=custom`, `DATABASE_URL` precedence,
 and `REDIS_BROKER_ENABLED=false` for in-process runs:
 
-- https://docs.aegra.dev/reference/configuration
-- https://docs.aegra.dev/guides/authentication
-- https://docs.aegra.dev/reference/environment-variables
-- https://docs.aegra.dev/guides/worker-architecture
+- [Configuration](https://docs.aegra.dev/reference/configuration)
+- [Authentication](https://docs.aegra.dev/guides/authentication)
+- [Environment variables](https://docs.aegra.dev/reference/environment-variables)
+- [Worker architecture](https://docs.aegra.dev/guides/worker-architecture)
 
 ## Architecture
 
@@ -125,3 +127,9 @@ make docker-up
 - Force an image rebuild: `make docker-build` or `make docker-up`.
 - Recreate all database data: `make docker-clean && make docker-up`.
 - Follow service logs: `make docker-logs`.
+
+## Related docs
+
+- [README](../README.md) — project overview and the two run modes.
+- [authentication.md](authentication.md) — the JWT → RLS tenant-isolation model.
+- [HOW_TO_TEST_IT_WORKS.md](../HOW_TO_TEST_IT_WORKS.md) — step-by-step test runbook.
