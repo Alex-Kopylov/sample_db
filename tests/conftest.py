@@ -31,6 +31,23 @@ def require_postgres() -> None:
 
 
 @pytest.fixture
+def stub_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Provide hermetic settings so token-parsing tests need no .env or database.
+
+    Env vars take precedence over the .env file in pydantic-settings, so this
+    works both in CI (no .env at all) and locally (overrides the real .env).
+    """
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("PG_APP_DSN", "postgresql://app:pw@localhost:5432/sample_db")
+    monkeypatch.setenv("PG_AUTH_DSN", "postgresql://auth:pw@localhost:5432/sample_db")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-please-32-chars-minimum-aaaa")
+    monkeypatch.setenv("JWT_ALGORITHM", "HS256")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture
 def customer_config() -> dict[str, dict[str, dict[str, str]]]:
     """Return a LangGraph config carrying authenticated customer identity 7."""
     return {"configurable": {"langgraph_auth_user": {"identity": "7"}}}

@@ -53,8 +53,13 @@ make run PORT=2030
 # 2. "sign in" — issue a token for an example email (this simulates the login service)
 TOKEN=$(uv run python -m sample_db.mint_token user_007@example.test)
 
-# 3. as customer 7, ask the agent for ALL email addresses
-curl -s -X POST http://127.0.0.1:2030/runs/wait \
+# 3. create a thread
+THREAD_ID=$(curl -s -X POST http://127.0.0.1:2030/threads \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{}' | uv run python -c 'import json,sys; print(json.load(sys.stdin)["thread_id"])')
+
+# 4. as customer 7, ask the agent for ALL email addresses
+curl -s -X POST "http://127.0.0.1:2030/threads/$THREAD_ID/runs/wait" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"assistant_id":"sql_agent","input":{"messages":[{"role":"user",
        "content":"How many customers are in the database, and list every customer email."}]}}'
@@ -69,15 +74,32 @@ Customer email addresses:
 ```
 
 ```bash
-# 4. without a token — rejected
-curl -s -o /dev/null -w 'HTTP %{http_code}\n' -X POST http://127.0.0.1:2030/runs/wait \
+# 5. without a token — rejected
+curl -s -o /dev/null -w 'HTTP %{http_code}\n' -X POST http://127.0.0.1:2030/threads \
   -H 'Content-Type: application/json' \
-  -d '{"assistant_id":"sql_agent","input":{"messages":[{"role":"user","content":"hi"}]}}'
+  -d '{}'
 # -> HTTP 401
 ```
 
 Change the email to `user_008@example.test` to see exactly that customer's data and
 nothing belonging to anyone else.
+
+## Docker Variant
+
+The Docker stack serves the same graph through Aegra on port `2024` and uses the
+same thread-based flow:
+
+```bash
+make docker-up
+TOKEN=$(uv run python -m sample_db.mint_token user_007@example.test)
+THREAD_ID=$(curl -s -X POST http://127.0.0.1:2024/threads \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{}' | uv run python -c 'import json,sys; print(json.load(sys.stdin)["thread_id"])')
+curl -s -X POST "http://127.0.0.1:2024/threads/$THREAD_ID/runs/wait" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"assistant_id":"sql_agent","input":{"messages":[{"role":"user","content":"How many completed orders are there?"}]}}'
+make docker-e2e
+```
 
 ## The Single Development-Only Shim
 

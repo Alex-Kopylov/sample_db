@@ -41,17 +41,28 @@ def check(label: str, ok: bool, detail: str = "") -> None:
 
 
 def post_run(question: str, token: str | None) -> tuple[int, dict]:
-    """Post one LangGraph run request and return its HTTP status and JSON body."""
-    body = json.dumps(
-        {
-            "assistant_id": "sql_agent",
-            "input": {"messages": [{"role": "user", "content": question}]},
-        }
-    ).encode()
+    """Create a thread, post one run, and return its HTTP status and JSON body."""
+    status, thread = _post_json("/threads", {}, token)
+    if status != HTTP_OK:
+        return status, thread
+
+    thread_id = thread.get("thread_id")
+    if not isinstance(thread_id, str) or not thread_id:
+        return 500, {"_error": f"thread creation response missing thread_id: {thread}"}
+
+    payload = {
+        "assistant_id": "sql_agent",
+        "input": {"messages": [{"role": "user", "content": question}]},
+    }
+    return _post_json(f"/threads/{thread_id}/runs/wait", payload, token)
+
+
+def _post_json(path: str, payload: dict, token: str | None) -> tuple[int, dict]:
+    body = json.dumps(payload).encode()
     headers = {"Content-Type": "application/json"}
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(f"{SERVER}/runs/wait", data=body, headers=headers)  # noqa: S310
+    req = urllib.request.Request(f"{SERVER}{path}", data=body, headers=headers)  # noqa: S310
     try:
         with urllib.request.urlopen(req, timeout=150) as resp:  # noqa: S310
             return resp.status, json.loads(resp.read().decode())

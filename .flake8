@@ -4,7 +4,7 @@
 
 # Only enable Pydantic and Async rules (other linting via ruff)
 select = PYD,ASYNC
-extend-exclude = .venv,build,dist
+extend-exclude = .venv,build,dist,.uv-cache
 
 # LangGraph's @auth.authenticate / @auth.on require async handler signatures even when
 # the body never awaits, so flake8-async's "could be sync" (ASYNC124) and missing-checkpoint
