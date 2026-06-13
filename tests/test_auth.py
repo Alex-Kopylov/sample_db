@@ -56,7 +56,10 @@ def test_authenticate_unknown_email_raises_401(require_postgres: None) -> None:
     _assert_unauthorized(exc_info)
 
 
-def test_authenticate_accepts_case_insensitive_header_names(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_authenticate_accepts_case_insensitive_header_names(
+    stub_settings: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     token = mint_token("user_007@example.test")
     monkeypatch.setattr(auth_module.db, "resolve_customer_id_by_email", lambda _email: 7)
 
@@ -65,7 +68,10 @@ def test_authenticate_accepts_case_insensitive_header_names(monkeypatch: pytest.
     assert user == {"identity": "7", "email": "user_007@example.test"}
 
 
-def test_authenticate_accepts_byte_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_authenticate_accepts_byte_headers(
+    stub_settings: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     token = mint_token("user_007@example.test")
     monkeypatch.setattr(auth_module.db, "resolve_customer_id_by_email", lambda _email: 7)
 
