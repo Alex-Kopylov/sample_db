@@ -5,25 +5,54 @@ agent answers natural-language questions by generating SQL, while Postgres
 Row-Level Security (RLS) keeps each authenticated customer scoped to their own
 rows.
 
+## Two ways to run it
+
+The graph, the JWT auth handler, and the HTTP API are identical in both modes —
+only the **server runtime** differs:
+
+| | Develop: `langgraph dev` + LangSmith | Deploy: Aegra |
+|---|---|---|
+| Command | `make run` | `make docker-up` |
+| Server | LangGraph CLI dev server | [Aegra](https://github.com/ibbybuilds/aegra) (open source) |
+| Best for | Iterating locally with rich tooling | Self-hosting / production |
+| UI & LLMOps | LangGraph Studio + LangSmith tracing, evals, observability | None (bring your own) |
+| State | In-memory (dev server) | Persistent in Postgres |
+| Custom JWT auth | Works | Works |
+| License / account | LangSmith account (free tier) for the UI | None |
+
+**Why Aegra for deployment.** The official LangGraph Platform server
+(`langchain/langgraph-api`) gates **custom authentication behind an Enterprise
+self-hosting license** — our JWT→RLS tenancy is exactly that, so the Lite/free
+server refuses to start with it. Aegra is an open-source re-implementation of the
+same Agent Protocol and `langgraph_sdk` API, so we get persistent threads/runs in
+Postgres with **no vendor lock-in, no enterprise subscription, and no license
+keys** — just our own infrastructure.
+
+**Why LangSmith is still great for development.** LangSmith is an *optional
+observability layer*, not the runtime boundary. During development `langgraph dev`
+gives hot reload, the visual **LangGraph Studio**, and — with a free LangSmith
+API key — full **LLMOps**: trace every run, inspect each node and SQL tool call,
+debug failures, and run evals. Because the same graph and auth code run under both
+runtimes, what you debug in LangSmith is what you ship on Aegra.
+
+---
+
 ## Prerequisites
 
-- Python 3.12 or newer
-- [uv](https://docs.astral.sh/uv/) for dependency management
-- Postgres with `createdb` and `psql` available (for the local, non-Docker flow)
-- Docker with Compose v2 (for the containerized flow)
+- Python 3.12 or newer, and [uv](https://docs.astral.sh/uv/)
 - An OpenAI API key
+- For dev mode: a local Postgres (`createdb`, `psql`) and a free
+  [LangSmith](https://smith.langchain.com/) API key (for the UI/tracing)
+- For Aegra mode: Docker with Compose v2 (nothing else)
 
 ## Quick start
-
-From a clean checkout:
 
 ```bash
 make setup
 ```
 
-`make setup` installs dependencies, copies `.env.example` to `.env` if needed,
-and prints the local database provisioning commands. Edit `.env` before running
-the app:
+`make setup` installs dependencies, copies `.env.example` to `.env` if needed, and
+prints the database provisioning commands. Edit `.env`:
 
 ```bash
 OPENAI_API_KEY=...
@@ -35,7 +64,20 @@ JWT_ALGORITHM=HS256
 
 `.env` is gitignored and must not be committed.
 
-Provision a local database from the repo root:
+---
+
+## 1. Develop with LangSmith (LLMOps UI)
+
+Use this while building and debugging the agent.
+
+**a. Add your LangSmith key to `.env`** (on top of the values above):
+
+```bash
+LANGSMITH_API_KEY=lsv2-...     # free tier is enough
+LANGSMITH_TRACING=true         # stream every run to LangSmith
+```
+
+**b. Provision a local Postgres** (once), from the repo root:
 
 ```bash
 createdb sample_db
@@ -46,126 +88,97 @@ psql -v ON_ERROR_STOP=1 -d sample_db -f db/03_rls.sql
 psql -v ON_ERROR_STOP=1 "postgresql://sample_app:sample_app_pw@127.0.0.1:5432/sample_db" -f db/validate_rls.sql
 ```
 
-Every row printed by `db/validate_rls.sql` should be `PASS`.
+Every row from `db/validate_rls.sql` should print `PASS`. (Prefer not to install
+Postgres? Run `make docker-up` and point `PG_APP_DSN`/`PG_AUTH_DSN` at
+`127.0.0.1:5433` instead.)
 
-Run the local verification suite:
+**c. Start the dev server:**
 
 ```bash
-make lint
-make test
+make run                       # langgraph dev on http://127.0.0.1:2024
 ```
 
-## Run with Docker
+This opens **LangGraph Studio** (a visual graph UI) and, with the LangSmith vars
+set, streams traces to your LangSmith project for observability, debugging, and
+evals. Override the bind address/port with `make run HOST=127.0.0.1 PORT=2030`.
 
-Docker runs the same `sql_agent` graph behind [Aegra](https://github.com/ibbybuilds/aegra)
-(an open-source LangGraph Platform alternative), with Postgres + pgvector in the
-same compose project. The Postgres container provisions itself on first start
-(roles → schema → CSV seed → RLS → Aegra state database). Compose requires a
-`.env` file (only `OPENAI_API_KEY`, `JWT_SECRET`, and `JWT_ALGORITHM` matter
-here — the DSNs are overridden inside compose):
+---
+
+## 2. Run with Aegra only (self-hosted, no LangSmith)
+
+Use this to deploy, or to run the whole stack with nothing but Docker. No
+LangSmith account, no license — see [`HOW_TO_TEST_IT_WORKS.md`](HOW_TO_TEST_IT_WORKS.md)
+for a full step-by-step test runbook.
+
+**a. Minimal `.env`** — only three values are needed (the Postgres DSNs are
+injected by compose):
 
 ```bash
-make setup                 # or: cp .env.example .env
-# edit .env: OPENAI_API_KEY + JWT settings
+OPENAI_API_KEY=...
+JWT_SECRET=<strong local secret>
+JWT_ALGORITHM=HS256
+```
+
+**b. Build and run:**
+
+```bash
 make docker-up
 curl -s http://127.0.0.1:2024/health
-make docker-e2e
+make docker-e2e               # auth/RLS e2e from host + inside the docker network
 ```
 
-The API is published at `http://127.0.0.1:2024`, health is at `/health`, and the
-containerized Postgres is published on `127.0.0.1:5433` by default so it does
-not conflict with a local Postgres on `5432`. Use `POSTGRES_HOST_PORT` or
-`LANGGRAPH_HOST_PORT` to override those host ports.
+This starts two containers — `langgraph` (Aegra at `http://127.0.0.1:2024`) and
+`postgres` (`pgvector/pg17` at `127.0.0.1:5433`, off 5432 so it never collides
+with a local Postgres). Postgres provisions itself on first boot (roles → schema
+→ CSV seed → RLS → Aegra state DB). Override host ports with `POSTGRES_HOST_PORT`
+/ `LANGGRAPH_HOST_PORT`. Tear down with `make docker-down`, or wipe the volume
+with `make docker-clean`.
 
-Stop containers with `make docker-down`. Reinitialize Postgres from scratch with
-`make docker-clean && make docker-up`; this drops the named volume and reruns the
-init scripts. See `docs/docker.md` for architecture, troubleshooting, and the
-Aegra rationale.
-
-## Development vs deployment
-
-Both runtimes serve the same graph, auth handler, and (thread-based) API, so the
-intended workflow is:
-
-- **Develop locally** with `make run` (`langgraph dev`): hot reload plus the
-  LangGraph Studio web UI at
-  `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`.
-- **Deploy** with `make docker-up`: Aegra serves the graph with persistent
-  threads/runs in Postgres, no LangSmith license required.
-
-The `langgraph` library stays a runtime dependency either way — Aegra replaces
-only the platform server, not the graph framework.
+---
 
 ## Usage
 
-Start the LangGraph API server:
-
-```bash
-make run
-```
-
-By default this serves `http://127.0.0.1:2024` with docs at `/docs`. Override
-the bind address or port when needed:
-
-```bash
-make run HOST=127.0.0.1 PORT=2030
-```
-
-Stop the server with `Ctrl-C`.
-
-Requests require a bearer JWT. For local development, mint a token for one of
-the seeded customer emails:
+Requests require a bearer JWT. Mint a token for a seeded customer email:
 
 ```bash
 TOKEN=$(uv run python -m sample_db.mint_token user_007@example.test)
 ```
 
-Use assistant id `sql_agent`. Create a thread, then run it and wait for the
-result (this flow works on both the local dev server and the Aegra container):
+Use assistant id `sql_agent`. Both runtimes accept a stateless run and a
+thread-based run:
 
 ```bash
-THREAD_ID=$(curl -s -X POST http://127.0.0.1:2024/threads \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{}' | uv run python -c 'import json,sys; print(json.load(sys.stdin)["thread_id"])')
-
-curl -s -X POST "http://127.0.0.1:2024/threads/$THREAD_ID/runs/wait" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
+# Stateless — one call, no thread to manage:
+curl -s -X POST http://127.0.0.1:2024/runs/wait \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{
     "assistant_id": "sql_agent",
-    "input": {
-      "messages": [
-        {
-          "role": "user",
-          "content": "How many completed orders are there?"
-        }
-      ]
-    }
+    "input": {"messages": [{"role": "user", "content": "How many completed orders are there?"}]}
   }'
+
+# Thread-based — keeps conversation state across runs:
+THREAD_ID=$(curl -s -X POST http://127.0.0.1:2024/threads \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{}' \
+  | uv run python -c 'import json,sys; print(json.load(sys.stdin)["thread_id"])')
+
+curl -s -X POST "http://127.0.0.1:2024/threads/$THREAD_ID/runs/wait" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"assistant_id":"sql_agent","input":{"messages":[{"role":"user","content":"List my recent orders."}]}}'
 ```
 
-The local dev server additionally supports stateless `POST /runs/wait`; the
-Aegra container is thread-based only.
+Even if the model is asked for every customer's data, RLS returns only the
+caller's rows. See [`docs/authentication.md`](docs/authentication.md) for the auth
+flow and [`docs/docker.md`](docs/docker.md) for the container architecture and the
+Aegra rationale.
 
 ## Make targets
 
-- `make setup` installs dependencies and scaffolds `.env`.
-- `make db` prints the local Postgres provisioning commands.
-- `make lint` runs Ruff, Flake8, and Vulture.
-- `make format` formats Python files with Ruff.
-- `make test` runs pytest.
-- `make run` starts the LangGraph dev server.
-- `make e2e` starts an isolated local server and runs the HTTP auth/RLS checks.
-- `make docker-up` / `make docker-down` / `make docker-clean` manage the compose stack.
-- `make docker-e2e` runs the auth/RLS e2e suite from the host and from inside the docker network.
-- `make docker-validate-rls` runs `db/validate_rls.sql` inside the Postgres container.
-- `make docker-logs` / `make docker-psql` for inspection.
-
-`make e2e` refuses to reuse a busy port. Pick another one when needed:
-
-```bash
-make e2e E2E_PORT=2031
-```
-
-See `docs/authentication.md` for the JWT auth flow and end-to-end testing.
+- `make setup` — install deps and scaffold `.env`.
+- `make db` — print the local Postgres provisioning commands.
+- `make lint` / `make format` / `make test` — Ruff/Flake8/Vulture, Ruff format, pytest.
+- `make run` — start the LangGraph dev server (dev mode).
+- `make e2e` — start an isolated local server and run the HTTP auth/RLS checks.
+- `make docker-up` / `make docker-down` / `make docker-clean` — manage the Aegra stack.
+- `make docker-e2e` — run the auth/RLS e2e suite from the host and inside the docker network.
+- `make docker-validate-rls` — run `db/validate_rls.sql` inside the Postgres container.
+- `make docker-logs` / `make docker-psql` — inspect the running stack.
