@@ -22,8 +22,6 @@ query to at most 5 results.
 You can order the results by a relevant column to return the most interesting
 examples in the database. Never query for all the columns from a specific table,
 only ask for the relevant columns given the question.
-
-NEVER make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 """.strip()
     )
 

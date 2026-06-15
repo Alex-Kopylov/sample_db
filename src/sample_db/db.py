@@ -36,6 +36,7 @@ def run_tenant_query(
     """Run a query inside a transaction scoped to one customer id."""
     _ensure_query_cannot_change_tenant(sql)
     with app_connection() as connection, connection.transaction():
+        connection.execute("SET TRANSACTION READ ONLY")
         connection.execute(
             "SELECT set_config('app.customer_id', %s, true)",
             (str(customer_id),),
