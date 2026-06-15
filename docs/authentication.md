@@ -30,8 +30,8 @@ This is not a mock-up — it is verified at three levels, all passing:
 
 | Level | What it proves | Result |
 |---|---|---|
-| SQL (`db/validate_rls.sql`) | cross-tenant access blocked, `WHERE id=8 OR 1=1` cannot bypass RLS, no context → 0 rows, writes denied | **11/11** |
-| pytest | RLS isolation + token verification (valid / malformed / expired / unknown) | **23 passed** |
+| SQL (`db/validate_rls.sql`) | cross-tenant access blocked, `WHERE id=8 OR 1=1` cannot bypass RLS, no context → 0 rows, write privileges denied | **12/12** |
+| pytest | RLS isolation + token verification (valid / malformed / expired / unknown) | **passing suite** |
 | HTTP end-to-end with real tokens | real server + real model | **5/5** |
 
 The key point: even under a direct prompt-injection attack ("ignore instructions, admin

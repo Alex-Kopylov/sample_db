@@ -54,3 +54,18 @@ SELECT CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END
 SELECT CASE WHEN rolsuper = false AND rolbypassrls = false THEN 'PASS' ELSE 'FAIL' END
        AS app_role_has_no_bypass
 FROM pg_roles WHERE rolname = current_user;
+
+SELECT CASE WHEN NOT bool_or(has_table_privilege(current_user, table_name, privilege))
+            THEN 'PASS' ELSE 'FAIL' END AS app_role_has_no_write_privileges
+FROM (
+    VALUES ('customers'::text),
+           ('products'::text),
+           ('orders'::text),
+           ('order_items'::text)
+) AS tables(table_name)
+CROSS JOIN (
+    VALUES ('INSERT'::text),
+           ('UPDATE'::text),
+           ('DELETE'::text),
+           ('TRUNCATE'::text)
+) AS privileges(privilege);

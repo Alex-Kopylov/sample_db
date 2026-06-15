@@ -36,6 +36,18 @@ def test_sql_db_query_uses_authenticated_customer_config(
     assert "(8," not in result
 
 
+def test_sql_db_query_runs_inside_read_only_transaction(
+    require_postgres: None,
+    customer_config: dict[str, dict[str, dict[str, str]]],
+) -> None:
+    result = tools.sql_db_query.invoke(
+        {"query": "SHOW transaction_read_only"},
+        config=customer_config,
+    )
+
+    assert result == "[('on',)]"
+
+
 def test_sql_db_schema_returns_columns_without_sample_rows(
     require_postgres: None,
     customer_config: dict[str, dict[str, dict[str, str]]],
@@ -65,3 +77,15 @@ def test_sql_db_query_rejects_tenant_scope_mutation(
             {"query": "SELECT set_config('app.customer_id', '8', true)"},
             config=customer_config,
         )
+
+
+def test_sql_db_query_rejects_write_attempts(
+    require_postgres: None,
+    customer_config: dict[str, dict[str, dict[str, str]]],
+) -> None:
+    result = tools.sql_db_query.invoke(
+        {"query": "DELETE FROM customers WHERE id = 7"},
+        config=customer_config,
+    )
+
+    assert result.startswith("Error:")
