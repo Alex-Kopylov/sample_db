@@ -54,7 +54,7 @@ async def authenticate(  # noqa: RUF029
     if customer_id is None:
         raise _unauthorized(UNKNOWN_CUSTOMER_DETAIL)
 
-    return {"identity": str(customer_id), "email": email}
+    return {"identity": str(customer_id), "email": email}  # ty: ignore[invalid-return-type, invalid-key]
 
 
 @auth.on

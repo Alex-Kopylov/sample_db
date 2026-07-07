@@ -41,7 +41,7 @@ def run_tenant_query(
             "SELECT set_config('app.customer_id', %s, true)",
             (str(customer_id),),
         )
-        cursor = connection.execute(sql, params)
+        cursor = connection.execute(sql, params)  # ty: ignore[invalid-argument-type]
         return cursor.fetchmany(50)
 
 
