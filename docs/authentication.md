@@ -41,14 +41,14 @@ lives in the database, not in the model.
 Run the HTTP end-to-end auth/RLS check from the repository root with:
 
 ```bash
-make e2e
+mise run e2e
 ```
 
 ## Quick Demo (real commands, real output)
 
 ```bash
 # 1. start the server
-make run PORT=2030
+PORT=2030 mise run run
 
 # 2. "sign in" — issue a token for an example email (this simulates the login service)
 TOKEN=$(uv run python -m sample_db.mint_token user_007@example.test)
@@ -67,7 +67,7 @@ curl -s -X POST "http://127.0.0.1:2030/threads/$THREAD_ID/runs/wait" \
 
 Example response (the database holds 120 customers, but the client sees only their own):
 
-```
+```text
 There are 1 customer in the database.
 Customer email addresses:
 - user_007@example.test
@@ -90,7 +90,7 @@ The [Docker stack](docker.md) serves the same graph through Aegra on port `2024`
 and uses the same thread-based flow:
 
 ```bash
-make docker-up
+mise run docker-up
 TOKEN=$(uv run python -m sample_db.mint_token user_007@example.test)
 THREAD_ID=$(curl -s -X POST http://127.0.0.1:2024/threads \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
@@ -98,7 +98,7 @@ THREAD_ID=$(curl -s -X POST http://127.0.0.1:2024/threads \
 curl -s -X POST "http://127.0.0.1:2024/threads/$THREAD_ID/runs/wait" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"assistant_id":"sql_agent","input":{"messages":[{"role":"user","content":"How many completed orders are there?"}]}}'
-make docker-e2e
+mise run docker-e2e
 ```
 
 ## The Single Development-Only Shim
