@@ -1,0 +1,18 @@
+# Changes here will be overwritten by Copier
+_commit: v0.1.0-24-gf343bf3
+_src_path: /Users/jhonsmith/PycharmProjects/ai-template/.claude/worktrees/jolly-elion-2cc17e
+author_name: Alex Kopylov
+coverage_fail_under: 0
+extra_linters:
+- jscpd
+- typos
+- markdownlint
+is_package: true
+license: MIT
+package_name: sample_db
+project_description: Project description
+project_name: sample-db
+python_version: '3.12'
+setup_mode: custom
+use_docker: true
+use_github_actions: true
