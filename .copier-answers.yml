@@ -1,6 +1,6 @@
 # Changes here will be overwritten by Copier
 _commit: v0.1.0-24-gf343bf3
-_src_path: /Users/jhonsmith/PycharmProjects/ai-template/.claude/worktrees/jolly-elion-2cc17e
+_src_path: gh:Alex-Kopylov/ai-ready-modern-python-template
 author_name: Alex Kopylov
 coverage_fail_under: 0
 extra_linters:
