@@ -85,6 +85,11 @@ def build_agent() -> CompiledStateGraph:
             return "check_query"
         return "__end__"
 
+    # ty false positive (astral-sh/ty#2826): ty cannot yet see that TypedDict
+    # classes such as MessagesState carry the __required_keys__/__optional_keys__
+    # ClassVars that LangGraph's TypedDictLikeV1 protocol requires, so the
+    # canonical StateGraph(MessagesState) call is rejected. A cast would erase
+    # the state schema to Any; suppress narrowly until ty supports the pattern.
     builder = StateGraph(MessagesState)  # ty: ignore[invalid-argument-type]
     builder.add_node("list_tables", list_tables)
     builder.add_node("call_get_schema", call_get_schema)
