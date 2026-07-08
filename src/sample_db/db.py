@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import psycopg
 
@@ -11,6 +11,7 @@ from sample_db.config import get_settings
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import LiteralString
 
 FORBIDDEN_TENANT_SQL_PATTERNS = (
     re.compile(r"\bset_config\s*\(", flags=re.IGNORECASE),
@@ -41,7 +42,12 @@ def run_tenant_query(
             "SELECT set_config('app.customer_id', %s, true)",
             (str(customer_id),),
         )
-        cursor = connection.execute(sql, params)
+        # psycopg types execute() as LiteralString-only to statically discourage
+        # SQL injection. This helper exists to run dynamic (model-generated) SQL,
+        # so the cast makes that bypass explicit; safety comes from the read-only
+        # transaction, the RLS tenant scope set above, and
+        # _ensure_query_cannot_change_tenant().
+        cursor = connection.execute(cast("LiteralString", sql), params)
         return cursor.fetchmany(50)
 
 

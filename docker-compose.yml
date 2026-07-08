@@ -76,4 +76,4 @@ services:
         condition: service_healthy
 
 volumes:
-  pgdata:
+  pgdata: {}

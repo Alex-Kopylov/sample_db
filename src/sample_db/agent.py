@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal, cast
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig  # noqa: TC002 - LangGraph inspects config annotations at runtime.
-from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 if TYPE_CHECKING:
@@ -36,9 +36,10 @@ def build_agent() -> CompiledStateGraph:
     run_query_node = ToolNode([sql_db_query], name="run_query")
 
     def list_tables(
-        _state: MessagesState,
+        state: MessagesState,
         config: RunnableConfig,
     ) -> dict[str, list[BaseMessage]]:
+        _ = state
         tool_call = {
             "name": sql_db_list_tables.name,
             "args": {},
@@ -69,13 +70,10 @@ def build_agent() -> CompiledStateGraph:
         user_message = HumanMessage(content=str(tool_call["args"]["query"]))
 
         model_with_tools = model.bind_tools([sql_db_query], tool_choice="any")
-        response = cast(
-            "AIMessage",
-            model_with_tools.invoke([SystemMessage(content=CHECK_QUERY_SYSTEM_PROMPT), user_message]),
-        )
+        response = model_with_tools.invoke([SystemMessage(content=CHECK_QUERY_SYSTEM_PROMPT), user_message])
         response.id = last_message.id
 
-        if response.tool_calls:
+        if response.tool_calls and original_tool_call_id is not None:
             response.tool_calls[0]["id"] = original_tool_call_id
             _preserve_raw_tool_call_id(response, original_tool_call_id)
 
@@ -85,9 +83,14 @@ def build_agent() -> CompiledStateGraph:
         last_message = state["messages"][-1]
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
             return "check_query"
-        return END
+        return "__end__"
 
-    builder = StateGraph(MessagesState)
+    # ty false positive (astral-sh/ty#2826): ty cannot yet see that TypedDict
+    # classes such as MessagesState carry the __required_keys__/__optional_keys__
+    # ClassVars that LangGraph's TypedDictLikeV1 protocol requires, so the
+    # canonical StateGraph(MessagesState) call is rejected. A cast would erase
+    # the state schema to Any; suppress narrowly until ty supports the pattern.
+    builder = StateGraph(MessagesState)  # ty: ignore[invalid-argument-type]
     builder.add_node("list_tables", list_tables)
     builder.add_node("call_get_schema", call_get_schema)
     builder.add_node("get_schema", get_schema_node)
@@ -103,7 +106,7 @@ def build_agent() -> CompiledStateGraph:
     builder.add_edge("check_query", "run_query")
     builder.add_edge("run_query", "generate_query")
 
-    return builder.compile()
+    return cast("CompiledStateGraph", builder.compile())
 
 
 def _preserve_raw_tool_call_id(message: AIMessage, tool_call_id: str) -> None:

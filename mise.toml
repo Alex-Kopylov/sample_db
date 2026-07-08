@@ -1,0 +1,260 @@
+[tools]
+python = "3.12.13"
+# Pinned like every other tool; "latest" made task runs depend on whatever
+# uv happened to resolve (lint-audit needs uv >= 0.11.19 for `uv audit`).
+# aqua backend: mise's core uv plugin extracts current uv tarballs incorrectly.
+"aqua:astral-sh/uv" = "0.11.27"
+node = "22.22.0"
+"npm:jscpd" = "4.2.4"
+"npm:markdownlint-cli2" = "0.22.1"
+"aqua:01mf02/jaq" = "2.3.0"
+"aqua:gitleaks/gitleaks" = "8.30.1"
+"aqua:hadolint/hadolint" = "2.14.0"
+"aqua:koalaman/shellcheck" = "0.11.0"
+"aqua:rhysd/actionlint" = "1.7.11"
+"aqua:tamasfe/taplo" = "0.10.0"
+"aqua:zizmorcore/zizmor" = "1.25.2"
+"aqua:crate-ci/typos" = "1.20.7"
+
+[env]
+UV_CACHE_DIR = ".uv-cache"
+HOST = "127.0.0.1"
+PORT = "2024"
+E2E_PORT = "2030"
+
+# Python tools managed via uv (installed in venv)
+# Accessible via `uv run <tool>` after `uv sync`
+[tasks.setup]
+description = "Install dependencies, scaffold .env, and print database provisioning commands"
+run = [
+  "uv sync",
+  "test -f .env || cp .env.example .env",
+  { tasks = ["db"] },
+  "echo \"Setup complete - fill .env, provision Postgres, then run 'mise run run'.\"",
+]
+
+[tasks.ruff-format]
+description = "Format Python code with ruff"
+run = "uv run ruff format --force-exclude"
+
+[tasks.ruff-check]
+description = "Lint Python code with ruff"
+run = "uv run ruff check --fix --force-exclude"
+
+[tasks.flake8]
+description = "Run flake8 async checks"
+run = "uv run flake8"
+
+[tasks.ty-check]
+description = "Type check Python code with ty"
+run = "uv run ty check"
+
+[tasks.yamllint]
+description = "Lint YAML files"
+run = "uv run yamllint -c .yamllint"
+
+[tasks.check-jsonschema]
+description = "Validate GitHub Actions workflow schemas"
+run = "uv run check-jsonschema --builtin-schema github-workflows .github/workflows/ci.yml"
+
+[tasks.install]
+description = "Install Python project dependencies"
+run = "uv sync --all-extras"
+
+[tasks.lint]
+description = "Run the full lint suite"
+run = [
+  { tasks = ["lint-full"] },
+]
+
+[tasks.lint-fast]
+description = "Run fast, edit-safe linters"
+run = [
+  { tasks = [
+    "lint-python-fast",
+    "lint-dockerfile",
+    "lint-md",
+    "lint-yml",
+    "lint-json",
+    "lint-toml",
+    "lint-github-actions",
+    "lint-typos",
+    ] },
+]
+
+[tasks.lint-full]
+description = "Run fast linters plus whole-project gate checks"
+run = [
+  { tasks = [
+    "lint-fast",
+    "lint-python-deep",
+    "lint-deps",
+    "lint-duplicates",
+    "lint-secrets",
+    "lint-audit",
+    "lint-gha-security",
+    ] },
+]
+
+[tasks.lint-python]
+description = "Run all Python lint checks"
+run = [
+  { tasks = [
+    "lint-python-fast",
+    "lint-python-deep",
+  ] },
+]
+
+[tasks.lint-python-fast]
+description = "Run fast Python checks"
+run = [
+  "uv run ruff check src tests",
+  "uv run ruff format --check src tests",
+  "uv run flake8 src",
+]
+
+[tasks.lint-python-deep]
+description = "Run whole-project Python analysis"
+run = [
+  "uv run ty check src",
+  "uv run vulture --config .vulture.toml",
+]
+
+[tasks.lint-dockerfile]
+description = "Lint Dockerfiles with Hadolint"
+run = "mise exec -- hadolint Dockerfile"
+
+[tasks.lint-md]
+description = "Lint Markdown files"
+run = "mise exec -- markdownlint-cli2"
+
+[tasks.lint-yml]
+description = "Lint YAML files"
+run = "uv run yamllint -c .yamllint ."
+
+[tasks.lint-json]
+description = "Validate JSON syntax with jaq"
+run = "mise exec -- jaq empty .jscpd.json"
+
+
+[tasks.lint-toml]
+description = "Lint TOML files with Taplo"
+run = "mise exec -- taplo lint"
+
+[tasks.lint-github-actions]
+description = "Lint GitHub Actions workflow files"
+run = [
+  "mise exec -- actionlint",
+  "uv run check-jsonschema --builtin-schema github-workflows .github/workflows/ci.yml",
+]
+
+[tasks.lint-duplicates]
+description = "Detect duplicated code"
+run = "mise exec -- jscpd --config .jscpd.json --threshold 5"
+
+[tasks.lint-deps]
+description = "Check Python dependency declarations"
+run = "uv run deptry ."
+
+[tasks.lint-secrets]
+description = "Scan git history for leaked secrets"
+run = "mise exec -- gitleaks git --redact --no-banner"
+
+[tasks.lint-gha-security]
+description = "Scan GitHub Actions workflows for security issues"
+run = "mise exec -- zizmor .github/workflows/ci.yml"
+
+[tasks.lint-audit]
+description = "Scan Python dependencies for known CVEs"
+run = "mise exec -- uv audit --preview-features audit"
+
+[tasks.lint-typos]
+description = "Scan for spelling mistakes"
+run = "mise exec -- typos"
+
+[tasks.test]
+description = "Run the pytest suite"
+run = "uv run pytest tests/"
+
+[tasks.test-cov]
+description = "Run the pytest suite with a coverage report"
+run = "uv run pytest tests/ --cov --cov-report=term-missing"
+
+[tasks.format]
+description = "Format and autofix Python code"
+run = [
+  "uv run ruff format src tests",
+  "uv run ruff check --fix src tests",
+]
+
+[tasks.db]
+description = "Print local Postgres provisioning commands"
+run = [
+  "echo \"Provision a local Postgres database from the repo root with:\"",
+  "echo \"  createdb sample_db\"",
+  "echo \"  psql -v ON_ERROR_STOP=1 -d sample_db -f db/00_roles.sql\"",
+  "echo \"  psql -v ON_ERROR_STOP=1 -d sample_db -f db/01_schema.sql\"",
+  "echo \"  psql -v ON_ERROR_STOP=1 -d sample_db -f db/02_seed.sql\"",
+  "echo \"  psql -v ON_ERROR_STOP=1 -d sample_db -f db/03_rls.sql\"",
+  "echo \"  psql -v ON_ERROR_STOP=1 \\\"postgresql://sample_app:sample_app_pw@127.0.0.1:5432/sample_db\\\" -f db/validate_rls.sql\"",
+]
+
+[tasks.run]
+description = "Start the LangGraph development server"
+run = 'uv run langgraph dev --no-browser --host "$HOST" --port "$PORT"'
+
+[tasks.e2e]
+description = "Run local HTTP auth/RLS checks against an isolated dev server"
+run = 'LC_ALL=C LANG=C PORT="$E2E_PORT" scripts/e2e/run_e2e.sh'
+
+[tasks.docker-build]
+description = "Build the Docker Compose images"
+run = "docker compose build"
+
+[tasks.docker-up]
+description = "Start the Docker Compose stack"
+run = [
+  "docker compose up -d --build --wait",
+  "echo \"API: http://$(docker compose port langgraph 2024)\"",
+  "echo \"Health: http://$(docker compose port langgraph 2024)/health\"",
+  "echo \"Postgres: $(docker compose port postgres 5432)\"",
+]
+
+[tasks.docker-down]
+description = "Stop the Docker Compose stack"
+run = "docker compose down --remove-orphans"
+
+[tasks.docker-clean]
+description = "Stop the Docker Compose stack and delete volumes"
+run = "docker compose down -v --remove-orphans"
+
+[tasks.docker-logs]
+description = "Follow Docker Compose logs"
+run = "docker compose logs -f"
+
+[tasks.docker-psql]
+description = "Open psql in the Postgres container"
+run = 'docker compose exec -e PGPASSWORD=${POSTGRES_SUPERUSER_PW:-postgres_dev_pw} postgres psql -U postgres -d sample_db'
+
+[tasks.docker-validate-rls]
+description = "Run SQL-level RLS validation inside the Postgres container"
+run = "docker compose exec -e PGPASSWORD=sample_app_pw postgres psql -U sample_app -d sample_db -f /db/validate_rls.sql"
+
+[tasks.docker-e2e]
+description = "Run auth/RLS e2e checks from the host and Docker network"
+run = [
+  "SERVER_URL=http://$(docker compose port langgraph 2024) uv run python scripts/e2e/e2e_auth.py",
+  "docker compose run --rm --build e2e",
+]
+
+[tasks.install-hooks]
+description = "Install prek-managed pre-commit and pre-push hooks"
+run = "uv run prek install --hook-type pre-commit --hook-type pre-push"
+
+[tasks.clean]
+description = "Remove local build and test cache directories"
+run = [
+  "find . -type d -name __pycache__ -exec rm -rf {} +",
+  "find . -type d -name .pytest_cache -exec rm -rf {} +",
+  "rm -rf dist build *.egg-info",
+]

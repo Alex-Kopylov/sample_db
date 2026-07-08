@@ -12,7 +12,7 @@ only the **server runtime** differs:
 
 | | Develop: `langgraph dev` + LangSmith | Deploy: Aegra |
 |---|---|---|
-| Command | `make run` | `make docker-up` |
+| Command | `mise run run` | `mise run docker-up` |
 | Server | LangGraph CLI dev server | [Aegra](https://github.com/ibbybuilds/aegra) (open source) |
 | Best for | Iterating locally with rich tooling | Self-hosting / production |
 | UI & LLMOps | LangGraph Studio + LangSmith tracing, evals, observability | None (bring your own) |
@@ -48,11 +48,11 @@ runtimes, what you debug in LangSmith is what you ship on Aegra.
 ## Quick start
 
 ```bash
-make setup
+mise run setup
 ```
 
-`make setup` installs dependencies, copies `.env.example` to `.env` if needed, and
-prints the database provisioning commands. Edit `.env`:
+`mise run setup` installs dependencies, copies `.env.example` to `.env` if
+needed, and prints the database provisioning commands. Edit `.env`:
 
 ```bash
 OPENAI_API_KEY=...
@@ -89,18 +89,19 @@ psql -v ON_ERROR_STOP=1 "postgresql://sample_app:sample_app_pw@127.0.0.1:5432/sa
 ```
 
 Every row from `db/validate_rls.sql` should print `PASS`. (Prefer not to install
-Postgres? Run `make docker-up` and point `PG_APP_DSN`/`PG_AUTH_DSN` at
+Postgres? Run `mise run docker-up` and point `PG_APP_DSN`/`PG_AUTH_DSN` at
 `127.0.0.1:5433` instead.)
 
 **c. Start the dev server:**
 
 ```bash
-make run                       # langgraph dev on http://127.0.0.1:2024
+mise run run                   # langgraph dev on http://127.0.0.1:2024
 ```
 
 This opens **LangGraph Studio** (a visual graph UI) and, with the LangSmith vars
 set, streams traces to your LangSmith project for observability, debugging, and
-evals. Override the bind address/port with `make run HOST=127.0.0.1 PORT=2030`.
+evals. Override the bind address/port with
+`HOST=127.0.0.1 PORT=2030 mise run run`.
 
 ---
 
@@ -122,17 +123,17 @@ JWT_ALGORITHM=HS256
 **b. Build and run:**
 
 ```bash
-make docker-up
+mise run docker-up
 curl -s http://127.0.0.1:2024/health
-make docker-e2e               # auth/RLS e2e from host + inside the docker network
+mise run docker-e2e           # auth/RLS e2e from host + inside the docker network
 ```
 
 This starts two containers — `langgraph` (Aegra at `http://127.0.0.1:2024`) and
 `postgres` (`pgvector/pg17` at `127.0.0.1:5433`, off 5432 so it never collides
 with a local Postgres). Postgres provisions itself on first boot (roles → schema
 → CSV seed → RLS → Aegra state DB). Override host ports with `POSTGRES_HOST_PORT`
-/ `LANGGRAPH_HOST_PORT`. Tear down with `make docker-down`, or wipe the volume
-with `make docker-clean`.
+/ `LANGGRAPH_HOST_PORT`. Tear down with `mise run docker-down`, or wipe the
+volume with `mise run docker-clean`.
 
 ---
 
@@ -171,14 +172,14 @@ caller's rows. See [`docs/authentication.md`](docs/authentication.md) for the au
 flow and [`docs/docker.md`](docs/docker.md) for the container architecture and the
 Aegra rationale.
 
-## Make targets
+## Mise tasks
 
-- `make setup` — install deps and scaffold `.env`.
-- `make db` — print the local Postgres provisioning commands.
-- `make lint` / `make format` / `make test` — Ruff/Flake8/Vulture, Ruff format, pytest.
-- `make run` — start the LangGraph dev server (dev mode).
-- `make e2e` — start an isolated local server and run the HTTP auth/RLS checks.
-- `make docker-up` / `make docker-down` / `make docker-clean` — manage the Aegra stack.
-- `make docker-e2e` — run the auth/RLS e2e suite from the host and inside the docker network.
-- `make docker-validate-rls` — run `db/validate_rls.sql` inside the Postgres container.
-- `make docker-logs` / `make docker-psql` — inspect the running stack.
+- `mise run setup` — install deps and scaffold `.env`.
+- `mise run db` — print the local Postgres provisioning commands.
+- `mise run lint` / `mise run format` / `mise run test` — full template lint gate, Ruff format, pytest.
+- `mise run run` — start the LangGraph dev server (dev mode).
+- `mise run e2e` — start an isolated local server and run the HTTP auth/RLS checks.
+- `mise run docker-up` / `mise run docker-down` / `mise run docker-clean` — manage the Aegra stack.
+- `mise run docker-e2e` — run the auth/RLS e2e suite from the host and inside the docker network.
+- `mise run docker-validate-rls` — run `db/validate_rls.sql` inside the Postgres container.
+- `mise run docker-logs` / `mise run docker-psql` — inspect the running stack.

@@ -17,18 +17,19 @@ flowchart LR
 ## Quick Start
 
 ```bash
-make docker-up
+mise run docker-up
 curl -s http://127.0.0.1:2024/health
-make docker-e2e
-make docker-validate-rls
+mise run docker-e2e
+mise run docker-validate-rls
 ```
 
 The API is published on `http://127.0.0.1:2024`. Postgres is published on
 `localhost:5433` by default because this machine already has local Postgres on
 `5432`. Override with `LANGGRAPH_HOST_PORT` or `POSTGRES_HOST_PORT`.
 
-Use `make docker-down` to stop the stack. Use `make docker-clean` to remove the
-Postgres volume and force a full database re-init on the next `make docker-up`.
+Use `mise run docker-down` to stop the stack. Use `mise run docker-clean` to
+remove the Postgres volume and force a full database re-init on the next
+`mise run docker-up`.
 
 ## Why Aegra
 
@@ -115,8 +116,8 @@ The init order is lexical:
 Re-run the full init sequence with:
 
 ```bash
-make docker-clean
-make docker-up
+mise run docker-clean
+mise run docker-up
 ```
 
 ## Troubleshooting
@@ -124,9 +125,9 @@ make docker-up
 - Docker daemon blocked or stopped: start OrbStack, then rerun `docker version`.
 - Host port `5432` already belongs to local Postgres: this stack publishes
   Postgres on `5433` by default.
-- Force an image rebuild: `make docker-build` or `make docker-up`.
-- Recreate all database data: `make docker-clean && make docker-up`.
-- Follow service logs: `make docker-logs`.
+- Force an image rebuild: `mise run docker-build` or `mise run docker-up`.
+- Recreate all database data: `mise run docker-clean && mise run docker-up`.
+- Follow service logs: `mise run docker-logs`.
 
 ## Related docs
 
