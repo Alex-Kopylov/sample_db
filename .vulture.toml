@@ -2,3 +2,6 @@
 min_confidence = 80
 paths = ["src"]
 exclude = ["tests", ".venv"]
+# LiteralString is imported under TYPE_CHECKING and referenced only inside a
+# quoted typing.cast() target (ruff TC006 style), which vulture cannot see.
+ignore_names = ["LiteralString"]
