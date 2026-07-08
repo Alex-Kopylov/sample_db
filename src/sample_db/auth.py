@@ -15,6 +15,17 @@ if TYPE_CHECKING:
 
 auth = Auth()
 
+
+class AuthenticatedUserDict(Auth.types.MinimalUserDict):
+    """Resolved customer identity returned by the authenticate hook.
+
+    Extends the SDK's ``MinimalUserDict`` with the customer's email claim;
+    the ``Authenticator`` contract allows extra mapping keys at runtime.
+    """
+
+    email: str
+
+
 INVALID_SUBJECT_DETAIL = "Invalid token subject"
 INVALID_JWT_DETAIL = "Invalid token"
 MISSING_AUTHORIZATION_DETAIL = "Missing authorization header"
@@ -26,7 +37,7 @@ UNRESOLVED_CUSTOMER_DETAIL = "Unable to resolve authenticated customer"
 @auth.authenticate
 async def authenticate(  # noqa: RUF029
     headers: Mapping[str | bytes, str | bytes] | str | bytes | None,
-) -> Auth.types.MinimalUserDict:
+) -> AuthenticatedUserDict:
     """Authenticate a bearer token and return the resolved customer identity."""
     authorization = _authorization_from_headers(headers)
     token = _extract_bearer_token(authorization)
@@ -54,7 +65,7 @@ async def authenticate(  # noqa: RUF029
     if customer_id is None:
         raise _unauthorized(UNKNOWN_CUSTOMER_DETAIL)
 
-    return {"identity": str(customer_id), "email": email}  # ty: ignore[invalid-return-type, invalid-key]
+    return {"identity": str(customer_id), "email": email}
 
 
 @auth.on
